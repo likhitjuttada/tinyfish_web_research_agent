@@ -5,11 +5,19 @@ from typing import List, Dict, Any
 from models.schemas import TaskSpecList
 from models.schemas import AgentState, TaskSpec, BrowserResult
 from config import TINYFISH_API_KEY, TINYFISH_API_BASE_URL
+import os
+from dotenv import load_dotenv
 
-async def run_tinyfish(session: aiohttp.ClientSession, url: str, goal: str) -> str:
-    """Submits a single run to TinyFish and returns the run ID."""
+# Load environment variables
+load_dotenv()
+
+import asyncio
+import aiohttp
+
+async def submit_tinyfish_run(session, url, goal):
+    """Submit a tinyfish run and return the run_id"""
     async with session.post(
-        f"{TINYFISH_API_BASE_URL}/automation/run-async",
+        "https://agent.tinyfish.ai/v1/automation/run-async",
         headers={
             "X-API-Key": TINYFISH_API_KEY,
             "Content-Type": "application/json",
@@ -20,82 +28,87 @@ async def run_tinyfish(session: aiohttp.ClientSession, url: str, goal: str) -> s
         },
     ) as response:
         result = await response.json()
-        return result.get("run_id")
+        return result["run_id"]
 
-async def get_run_result(session: aiohttp.ClientSession, run_id: str) -> Dict[str, Any]:
-    """Polls a run status until completion and returns the final data."""
+async def get_run_status(session, run_id):
+    """Get the status of a specific run"""
+    async with session.get(
+        f"https://agent.tinyfish.ai/v1/runs/{run_id}",
+        headers={
+            "X-API-Key": TINYFISH_API_KEY,
+        },
+    ) as response:
+        return await response.json()
+
+async def wait_for_completion(session, run_id, poll_interval=5):
+    """Poll a run until it completes"""
     while True:
-        async with session.get(
-            f"{TINYFISH_API_BASE_URL}/runs/{run_id}",
-            headers={"Authorization": f"Bearer {TINYFISH_API_KEY}"}
-        ) as response:
-            response.raise_for_status()
-            data = await response.json()
-            
-            status = data.get("status")
-            if status == "completed":
-                return data
-            elif status == "failed":
-                raise Exception(f"Run {run_id} failed: {data.get('error')}")
-            
-            # Wait before polling again
-            await asyncio.sleep(5)
+        response = await get_run_status(session, run_id)
+        status = response.get("status")
 
-async def synthesizer(data):
-    with open(f"output/{slug}.md", "w") as f:
-        f.write(data)
-    return 0
+        if status in ["COMPLETED", "FAILED", "CANCELLED"]:
+            return response
 
-async def browser_executor(task_list: TaskSpecList) -> AgentState:
-    """
-    Browser executor node.
-    Submits tasks as "fire and forget" runs, then polls for completion.
-    """
-    print(f"--- SUBMITTING {len(task_list.tasks)} RESEARCH TASKS ---")
-    
-    start_time = time.time()
-    print(task_list.tasks)
+        await asyncio.sleep(poll_interval)
+
+async def browser_submitter(tasklist: TaskSpecList) -> Dict[str, Any]:
+    """Submit research tasks to TinyFish and store run_ids in state."""
+    task_specs = tasklist.tasks
+    if not task_specs:
+        return {"run_ids": [], "pending_run_ids": [], "polling_attempt": 0}
+
+    print(f"--- SUBMITTING {len(task_specs)} RESEARCH TASKS ---")
     
     async with aiohttp.ClientSession() as session:
-        # Submit all tasks
         submit_tasks = [
-            run_tinyfish(session, task.url, task.goal)
-            for task in task_list.tasks
+            submit_tinyfish_run(session, task.url, task.goal)
+            for task in task_specs
         ]
         run_ids = await asyncio.gather(*submit_tasks)
-        print(run_ids)
+        print(f"Submitted {len(run_ids)} runs: {run_ids}")
+
+    return {
+        "run_ids": run_ids, 
+        "pending_run_ids": run_ids,
+        "polling_attempt": 0,
+        "raw_results": []
+    }
+
+async def browser_poller(state: AgentState) -> Dict[str, Any]:
+    """Poll pending run IDs and update results."""
+    pending_run_ids = state.get("pending_run_ids", [])
+    if not pending_run_ids:
+        return {}
+
+    attempt = state.get("polling_attempt", 0)
+    print(f"--- POLLING {len(pending_run_ids)} PENDING RUNS (Attempt {attempt}) ---")
+    
+    results = state.get("raw_results", [])
+    still_pending = []
+    
+    async with aiohttp.ClientSession() as session:
+        # Check status of all pending runs
+        status_tasks = [get_run_status(session, rid) for rid in pending_run_ids]
+        responses = await asyncio.gather(*status_tasks)
         
-        
-        # # 2. Poll for all results
-        # print("Polling for results...")
-        # poll_tasks = [get_run_result(session, rid) for rid in run_ids]
-        
-        # # Using return_exceptions=True to handle individual failures gracefully
-        # finished_results = await asyncio.gather(*poll_tasks, return_exceptions=True)
-        
-        # browser_results = []
-        # for idx, res in enumerate(finished_results):
-        #     if isinstance(res, Exception):
-        #         print(f"Task {run_ids[idx]} failed: {res}")
-        #         continue
+        for idx, res in enumerate(responses):
+            run_id = pending_run_ids[idx]
+            status = res.get("status")
             
-    #         browser_results.append(BrowserResult(
-    #             source_url=res.get("url", ""),
-    #             platform=state["task_specs"][idx].platform_url,
-    #             raw_content=res.get("content", ""),
-    #             extracted_snippets=res.get("snippets", []),
-    #             metadata=res.get("metadata", {})
-    #         ))
-    
-    # elapsed_time = time.time() - start_time
-    
-    # metadata = state.get("metadata", {})
-    # metadata["session_count"] = len(browser_results)
-    # metadata["time_elapsed"] = elapsed_time
-    # metadata["run_ids"] = run_ids
-    
-    # return {
-    #     "raw_results": browser_results,
-    #     "run_ids": run_ids,
-    #     "metadata": metadata
-    # }
+            if status in ["COMPLETED", "FAILED", "CANCELLED"]:
+                print(f"Run {run_id} finished with status: {status}")
+                results.append(BrowserResult(
+                    url=res.get("url", ""),
+                    goal=res.get("goal", ""),
+                    raw_content=res.get("result", ""),
+                    # extracted_snippets=res.get("snippets", []),
+                    metadata=res.get("metadata", {})
+                ))
+            else:
+                still_pending.append(run_id)
+
+    return {
+        "pending_run_ids": still_pending,
+        "raw_results": results,
+        "polling_attempt": attempt + 1
+    }

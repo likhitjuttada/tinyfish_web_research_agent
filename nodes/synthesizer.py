@@ -26,9 +26,9 @@ async def synthesizer(state: AgentState) -> dict:
     # Format results for the prompt
     formatted_results = ""
     for idx, result in enumerate(state["raw_results"]):
-        formatted_results += f"Source {idx+1} ({result.platform}): {result.source_url}\n"
-        formatted_results += f"Content: {result.raw_content[:2000]}...\n" # Truncate for prompt length
-        formatted_results += f"Snippets: {', '.join(result.extracted_snippets)}\n"
+        formatted_results += f"Source {idx+1}: {result.url}\n"
+        formatted_results += f"Content: {result.raw_content}\n" # Truncate for prompt length
+        # formatted_results += f"Snippets: {', '.join(result.extracted_snippets)}\n"
         formatted_results += "-" * 20 + "\n"
     
     # Load prompt
@@ -45,6 +45,8 @@ async def synthesizer(state: AgentState) -> dict:
     ]
     
     response = await llm.ainvoke(messages)
+
+    print(response.content)
     
     return {
         "final_document": response.content
