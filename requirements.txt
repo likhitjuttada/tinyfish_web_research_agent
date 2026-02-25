@@ -1,0 +1,9 @@
+langgraph
+langchain
+langsmith
+langchain-google-genai
+httpx
+pydantic
+python-dotenv
+aiohttp
+
