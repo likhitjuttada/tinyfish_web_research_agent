@@ -45,8 +45,6 @@ async def synthesizer(state: AgentState) -> dict:
     ]
     
     response = await llm.ainvoke(messages)
-
-    print(response.content)
     
     return {
         "final_document": response.content

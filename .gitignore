@@ -3,3 +3,5 @@
 
 archive/
 __pycache__/
+intermediate_results/
+output/

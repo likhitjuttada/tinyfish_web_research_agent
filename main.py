@@ -58,7 +58,6 @@ async def main():
     print("✅ RESEARCH COMPLETE")
     print(f"📄 Document saved to: {filepath}")
     print(f"🌐 Sources searched: {sources_count}")
-    print(f"⏱️ Time elapsed: {time_elapsed:.2f} seconds")
     print("="*50)
 
 if __name__ == "__main__":
