@@ -6,7 +6,7 @@ from nodes.planner import query_planner
 from nodes.executor import browser_submitter, browser_poller
 from nodes.synthesizer import synthesizer
 
-POLLING_INTERVALS = [2, 2, 4, 4, 4, 6, 6, 7, 8, 8]
+POLLING_INTERVALS = [2, 4, 6, 6, 6, 8, 8, 10, 10, 12, 14]
 
 async def wait_node(state: AgentState) -> AgentState:
     """Sleep for the duration of the current polling interval."""

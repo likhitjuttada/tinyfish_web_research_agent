@@ -42,7 +42,7 @@ async def submit_tinyfish_run(session, url, goal):
         result = await response.json()
         return result["run_id"]
 
-async def get_run_status(session, run_id):
+async def get_run_response(session, run_id):
     """Get the status of a specific run"""
     async with session.get(
         f"https://agent.tinyfish.ai/v1/runs/{run_id}",
@@ -51,17 +51,6 @@ async def get_run_status(session, run_id):
         },
     ) as response:
         return await response.json()
-
-async def wait_for_completion(session, run_id, poll_interval=5):
-    """Poll a run until it completes"""
-    while True:
-        response = await get_run_status(session, run_id)
-        status = response.get("status")
-
-        if status in ["COMPLETED", "FAILED", "CANCELLED"]:
-            return response
-
-        await asyncio.sleep(poll_interval)
 
 async def browser_submitter(tasklist: TaskSpecList) -> Dict[str, Any]:
     """Submit research tasks to TinyFish and store run_ids in state."""
@@ -93,15 +82,15 @@ async def browser_poller(state: AgentState) -> Dict[str, Any]:
         return {}
 
     attempt = state.get("polling_attempt", 0)
-    print(f"--- POLLING {len(pending_run_ids)} PENDING RUNS (Attempt {attempt}) ---")
+    print(f"--- POLLING {len(pending_run_ids)} PENDING RUNS (Attempt {attempt+1}) ---")
     
     results = state.get("raw_results", [])
     still_pending = []
     
     async with aiohttp.ClientSession() as session:
         # Check status of all pending runs
-        status_tasks = [get_run_status(session, rid) for rid in pending_run_ids]
-        responses = await asyncio.gather(*status_tasks)
+        runs = [get_run_response(session, rid) for rid in pending_run_ids]
+        responses = await asyncio.gather(*runs)
         
         for idx, res in enumerate(responses):
             run_id = pending_run_ids[idx]
@@ -114,7 +103,6 @@ async def browser_poller(state: AgentState) -> Dict[str, Any]:
                     url=res.get("url", ""),
                     goal=res.get("goal", ""),
                     raw_content=res.get("result", ""),
-                    # extracted_snippets=res.get("snippets", []),
                     metadata=res.get("metadata", {})
                 ))
             else:

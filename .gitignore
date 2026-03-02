@@ -1,5 +1,10 @@
 .venv/
 .env
+*/mcp_config.json
+*/mcp_config.yaml
+*/mcp_config.yml
+*/mcp_config.toml
+*/mcp_config.toml
 
 archive/
 __pycache__/
