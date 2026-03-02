@@ -9,7 +9,7 @@
     "plugins": [
         {
             "name": "tinyfish-research",
-            "source": "./",
+            "source": "https://github.com/likhitjuttada/tinyfish_web_research_agent",
             "description": "Deep web research using TinyFish AI browser agents with LLM synthesis"
         }
     ]
