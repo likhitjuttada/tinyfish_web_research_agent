@@ -16,6 +16,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # Output Configuration
-OUTPUT_DIR = "research_agent/output"
+OUTPUT_DIR = "./output"
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)

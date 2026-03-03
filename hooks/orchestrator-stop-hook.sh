@@ -89,7 +89,7 @@ is_lock_alive() {
 if [ -f "$LOCK_FILE" ]; then
   if is_lock_alive; then
     log "SKIP: another hook instance is running"
-    jq -n '{decision:"block", reason:"TinyFish research agents are still running. Please wait."}'
+    python3 -c "import json; print(json.dumps({'decision': 'block', 'reason': 'TinyFish research agents are still running. Please wait.'}))"
     exit 0
   else
     log "WARN: removing stale lock"
@@ -139,20 +139,9 @@ if [ -f "${WORKSPACE}/final-report.md" ]; then
     INTERMEDIATE_COUNT=$(find "$INTERMEDIATE_DIR" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
   fi
 
-  REASON="The TinyFish research pipeline has completed for research ID: ${RESEARCH_ID}.
+  REASON="The TinyFish research pipeline has completed for topic: ${TOPIC}. Let the user know their research is done and the report is saved at ${REPORT_PATH} (${INTERMEDIATE_COUNT} sources). Do not read or summarize the report yourself."
 
-Results are available at:
-- Final report: ${REPORT_PATH}
-- Intermediate results: ${INTERMEDIATE_DIR}/ (${INTERMEDIATE_COUNT} source files)
-
-Please read the final report and all intermediate result files, then present a comprehensive summary to the user with:
-1. Key Findings from all sources
-2. Source Breakdown (what each browser agent found)
-3. A coherent synthesis combining all findings
-4. Open Questions that remain
-5. Complete source list"
-
-  jq -n --arg r "$REASON" '{decision:"block", reason:$r}'
+  python3 -c "import json,sys; print(json.dumps({'decision': 'block', 'reason': sys.argv[1]}))" "$REASON"
 else
   log "WARN: No final report found at ${WORKSPACE}/final-report.md"
   rm -f "$STATE_FILE"

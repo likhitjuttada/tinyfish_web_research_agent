@@ -82,6 +82,7 @@ echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) Setup started" > "${WORKSPACE}/progress.log
 mkdir -p .claude
 
 cat > .claude/tinyfish-research.local.md <<EOF
+---
 research_id: ${RESEARCH_ID}
 phase: research
 started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)

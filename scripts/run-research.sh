@@ -41,6 +41,7 @@ if ${PYTHON} main.py "${TOPIC}" >> "$LOG_FILE" 2>&1; then
 else
   EXIT_CODE=$?
   log "Research pipeline failed with exit code ${EXIT_CODE}"
+  echo "ERROR: Research pipeline failed (exit code ${EXIT_CODE}). Check ${LOG_FILE} for details." >&2
   exit ${EXIT_CODE}
 fi
 

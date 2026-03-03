@@ -32,7 +32,7 @@ async def main():
         }
     }
     
-    print(f"🚀 Starting research for: '{query}'")
+    print(f"Starting research for: '{query}'")
     
     # Create the graph
     app = create_research_graph()
@@ -55,9 +55,9 @@ async def main():
     time_elapsed = metadata.get("time_elapsed", 0)
     
     print("\n" + "="*50)
-    print("✅ RESEARCH COMPLETE")
-    print(f"📄 Document saved to: {filepath}")
-    print(f"🌐 Sources searched: {sources_count}")
+    print("RESEARCH COMPLETE")
+    print(f"Document saved to: {filepath}")
+    print(f"Sources searched: {sources_count}")
     print("="*50)
 
 if __name__ == "__main__":
