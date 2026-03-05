@@ -14,9 +14,15 @@ fi
 
 # ── Check for existing session ────────────────────────────────────────────
 if [ -f ".claude/tinyfish-research.local.md" ]; then
-  echo "Error: A research session is already active."
-  echo "Use /tinyfish:cancel-research to abort it first, or wait for it to complete."
-  exit 1
+  EXISTING_PHASE=$(sed -n 's/^phase: *//p' .claude/tinyfish-research.local.md | head -1)
+  if [ "$EXISTING_PHASE" = "research" ]; then
+    echo "Error: A research session is already active."
+    echo "Use /tinyfish:cancel-research to abort it first, or wait for it to complete."
+    exit 1
+  else
+    # Completed session (synthesis phase) — clean up so a new one can start
+    rm -f .claude/tinyfish-research.local.md .claude/tinyfish-research.lock
+  fi
 fi
 
 # ── Resolve plugin root ──────────────────────────────────────────────────
@@ -74,7 +80,7 @@ fi
 RESEARCH_ID="research-$(date +%Y%m%d-%H%M%S)-$$"
 
 # ── Create workspace ─────────────────────────────────────────────────────
-WORKSPACE="research/${RESEARCH_ID}"
+WORKSPACE="$(pwd)/research/${RESEARCH_ID}"
 mkdir -p "${WORKSPACE}/intermediate"
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) Setup started" > "${WORKSPACE}/progress.log"
 

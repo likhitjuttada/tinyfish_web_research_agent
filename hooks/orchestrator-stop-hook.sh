@@ -3,7 +3,14 @@
 # TinyFish Research Agent — Stop Hook Orchestrator
 #
 # This hook fires after every Claude response. It checks if a research
-# session is active and, if so, runs the Python research pipeline.
+# session is active. The pipeline runs in the background so Claude remains
+# usable while research is in progress.
+#
+# Flow:
+#   1. First invocation (no lock): launch pipeline in background, exit 0
+#   2. Pipeline running (lock alive): exit 0 — Claude stays responsive
+#   3. Pipeline done (lock gone, report exists): trigger synthesis prompt
+#   4. Pipeline failed (lock gone, no report): clean up state
 # ──────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -59,7 +66,7 @@ if [ -n "$STARTED_AT" ]; then
   AGE=$(( NOW_EPOCH - STARTED_EPOCH ))
   if [ "$AGE" -gt 10800 ]; then  # 3 hours
     log "WARN: stale state file (${AGE}s old), cleaning up"
-    rm -f "$STATE_FILE"
+    rm -f "$STATE_FILE" "$LOCK_FILE"
     exit 0
   fi
 fi
@@ -73,7 +80,7 @@ if [ -z "$TOPIC" ]; then
   exit 0
 fi
 
-# ── Lock acquire ─────────────────────────────────────────────────────────
+# ── Lock helpers ─────────────────────────────────────────────────────────
 is_lock_alive() {
   if [ ! -f "$LOCK_FILE" ]; then
     return 1
@@ -86,63 +93,56 @@ is_lock_alive() {
   return 1
 }
 
-if [ -f "$LOCK_FILE" ]; then
-  if is_lock_alive; then
-    log "SKIP: another hook instance is running"
-    python3 -c "import json; print(json.dumps({'decision': 'block', 'reason': 'TinyFish research agents are still running. Please wait.'}))"
-    exit 0
-  else
-    log "WARN: removing stale lock"
-    rm -f "$LOCK_FILE"
-  fi
+# ── Pipeline already running in background → stay non-blocking ───────────
+if is_lock_alive; then
+  log "INFO: research pipeline is running in background ($(cat "$LOCK_FILE"))"
+  exit 0
 fi
-
-echo "$$:$(date +%s)" > "$LOCK_FILE"
-
-release_lock() {
-  rm -f "$LOCK_FILE"
-}
-trap release_lock EXIT
-
-# ── Run the research pipeline ────────────────────────────────────────────
-log "Starting research pipeline (ID: ${RESEARCH_ID})"
-log "Topic: ${TOPIC}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/../scripts" && pwd)"
 
-if bash "${SCRIPT_DIR}/run-research.sh" \
+# ── Stale lock: pipeline finished or crashed → check results ─────────────
+if [ -f "$LOCK_FILE" ]; then
+  log "INFO: lock is gone, checking results"
+  rm -f "$LOCK_FILE"
+
+  if [ -f "${WORKSPACE}/final-report.md" ]; then
+    # Transition state to synthesis
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' 's/^phase: research$/phase: synthesis/' "$STATE_FILE"
+    else
+      sed -i 's/^phase: research$/phase: synthesis/' "$STATE_FILE"
+    fi
+
+    INTERMEDIATE_COUNT=0
+    if [ -d "${WORKSPACE}/intermediate" ]; then
+      INTERMEDIATE_COUNT=$(find "${WORKSPACE}/intermediate" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
+    fi
+
+    REASON="The TinyFish research pipeline has completed for topic: ${TOPIC}. Let the user know their research is done and the report is saved at ${WORKSPACE}/final-report.md (${INTERMEDIATE_COUNT} sources). Do not read or summarize the report yourself."
+    rm -f "$STATE_FILE"
+    python3 -c "import json,sys; print(json.dumps({'decision': 'block', 'reason': sys.argv[1]}))" "$REASON"
+  else
+    log "WARN: pipeline finished but no final report found"
+    rm -f "$STATE_FILE"
+  fi
+  exit 0
+fi
+
+# ── No lock → first invocation: launch pipeline in background ────────────
+log "Launching research pipeline in background (ID: ${RESEARCH_ID})"
+log "Topic: ${TOPIC}"
+
+nohup bash "${SCRIPT_DIR}/run-research.sh" \
     "$RESEARCH_ID" \
     "$TOPIC" \
     "$PLUGIN_ROOT" \
-    "$WORKSPACE"; then
-  log "Research pipeline completed successfully"
-else
-  EXIT_CODE=$?
-  log "Research pipeline failed with exit code ${EXIT_CODE}"
-fi
+    "$WORKSPACE" \
+    >> "${WORKSPACE}/progress.log" 2>&1 &
 
-# ── Update state to synthesis ────────────────────────────────────────────
-if [ -f "${WORKSPACE}/final-report.md" ]; then
-  # Portable sed -i
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' 's/^phase: research$/phase: synthesis/' "$STATE_FILE"
-  else
-    sed -i 's/^phase: research$/phase: synthesis/' "$STATE_FILE"
-  fi
+BG_PID=$!
+echo "${BG_PID}:$(date +%s)" > "$LOCK_FILE"
+log "Pipeline started with PID ${BG_PID} — Claude is now free to respond"
 
-  # Return synthesis prompt to Claude
-  REPORT_PATH="${WORKSPACE}/final-report.md"
-  INTERMEDIATE_DIR="${WORKSPACE}/intermediate"
-  
-  INTERMEDIATE_COUNT=0
-  if [ -d "$INTERMEDIATE_DIR" ]; then
-    INTERMEDIATE_COUNT=$(find "$INTERMEDIATE_DIR" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
-  fi
-
-  REASON="The TinyFish research pipeline has completed for topic: ${TOPIC}. Let the user know their research is done and the report is saved at ${REPORT_PATH} (${INTERMEDIATE_COUNT} sources). Do not read or summarize the report yourself."
-
-  python3 -c "import json,sys; print(json.dumps({'decision': 'block', 'reason': sys.argv[1]}))" "$REASON"
-else
-  log "WARN: No final report found at ${WORKSPACE}/final-report.md"
-  rm -f "$STATE_FILE"
-fi
+# Allow Claude to respond immediately
+exit 0
