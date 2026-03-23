@@ -1,0 +1,17 @@
+{
+    "name": "tinyfish-research",
+    "version": "0.1.0",
+    "description": "Deep web research using TinyFish AI browser agents with LLM synthesis",
+    "author": {
+        "name": "Likhit Juttada"
+    },
+    "repository": "https://github.com/likhitjuttada/tinyfish_web_research_agent",
+    "license": "MIT",
+    "keywords": [
+        "research",
+        "tinyfish",
+        "web-scraping",
+        "browser-agent",
+        "langgraph"
+    ]
+}

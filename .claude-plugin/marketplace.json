@@ -1,0 +1,16 @@
+{
+    "name": "tinyfish-research",
+    "metadata": {
+        "description": "Deep web research using TinyFish AI browser agents with LLM synthesis"
+    },
+    "owner": {
+        "name": "Likhit Juttada"
+    },
+    "plugins": [
+        {
+            "name": "tinyfish-research",
+            "source": "./",
+            "description": "Deep web research using TinyFish AI browser agents with LLM synthesis"
+        }
+    ]
+}

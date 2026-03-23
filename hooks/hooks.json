@@ -1,0 +1,17 @@
+{
+    "description": "TinyFish Research Agent: orchestrates web research pipeline via Stop hook",
+    "hooks": {
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/orchestrator-stop-hook.sh",
+                        "timeout": 7200,
+                        "statusMessage": "TinyFish Research: running browser agents..."
+                    }
+                ]
+            }
+        ]
+    }
+}

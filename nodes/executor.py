@@ -28,7 +28,7 @@ def _save_intermediate_result(run_id: str, response: dict) -> str:
     filepath = os.path.join(_get_intermediate_dir(), f"{run_id}.json")
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(response, f, indent=2, default=str)
-    print(f"  💾 Saved intermediate result → {filepath}")
+    print(f"Saved intermediate result: {filepath}")
     return filepath
 
 
