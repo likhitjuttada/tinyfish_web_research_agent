@@ -1,23 +1,27 @@
 import json
 import os
 from typing import List
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+# from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from models.schemas import AgentState, TaskSpec, TaskSpecList
-from config import LLM_PROVIDER, LLM_MODEL, OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY 
+
+load_dotenv()
 
 def get_llm():
-    if LLM_PROVIDER == "openai":
-        model= ChatOpenAI(model=LLM_MODEL, api_key=OPENAI_API_KEY, temperature=0)
-    elif LLM_PROVIDER == "anthropic":
-        model= ChatAnthropic(model=LLM_MODEL, api_key=ANTHROPIC_API_KEY, temperature=0)
-    elif LLM_PROVIDER == "google":
-        model= ChatGoogleGenerativeAI(model=LLM_MODEL, api_key=GOOGLE_API_KEY, temperature=0)
+    provider = os.getenv("LLM_PROVIDER", "google")
+    model_name = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+    if provider == "openai":
+        model = ChatOpenAI(model=model_name, api_key=os.getenv("OPENAI_API_KEY"), temperature=0)
+    elif provider == "anthropic":
+        model = ChatAnthropic(model=model_name, api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=0)
+    elif provider == "google":
+        model = ChatGoogleGenerativeAI(model=model_name, api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
     else:
-        raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
-    
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
     return model.with_structured_output(TaskSpecList)
 
 async def query_planner(state: AgentState) -> TaskSpecList:

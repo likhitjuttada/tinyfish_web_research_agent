@@ -8,5 +8,6 @@
 
 archive/
 __pycache__/
-intermediate_results/
+research/
 output/
+.claude/*local*

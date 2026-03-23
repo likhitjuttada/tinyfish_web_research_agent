@@ -7,19 +7,25 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 from models.schemas import TaskSpecList
 from models.schemas import AgentState, TaskSpec, BrowserResult
-from config import TINYFISH_API_KEY, TINYFISH_API_BASE_URL
+TINYFISH_API_KEY = os.getenv("TINYFISH_API_KEY")
+TINYFISH_API_BASE_URL = "https://agent.tinyfish.ai/v1"
 
 # Load environment variables
 load_dotenv()
 
-# Directory for saving raw per-source results
-INTERMEDIATE_DIR = os.path.join(os.path.dirname(__file__), "..", "intermediate_results")
-os.makedirs(INTERMEDIATE_DIR, exist_ok=True)
+def _get_intermediate_dir() -> str:
+    workspace = os.environ.get("RESEARCH_WORKSPACE")
+    if workspace:
+        d = os.path.join(workspace, "intermediate")
+    else:
+        d = os.path.join(os.path.dirname(__file__), "..", "intermediate_results")
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def _save_intermediate_result(run_id: str, response: dict) -> str:
     """Persist a single run's raw API response to disk as JSON."""
-    filepath = os.path.join(INTERMEDIATE_DIR, f"{run_id}.json")
+    filepath = os.path.join(_get_intermediate_dir(), f"{run_id}.json")
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(response, f, indent=2, default=str)
     print(f"  💾 Saved intermediate result → {filepath}")

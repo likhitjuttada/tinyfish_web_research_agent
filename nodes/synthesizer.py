@@ -1,20 +1,24 @@
 import os
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+# from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from models.schemas import AgentState
-from config import LLM_PROVIDER, LLM_MODEL, OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY
+
+load_dotenv()
 
 def get_llm():
-    if LLM_PROVIDER == "openai":
-        return ChatOpenAI(model=LLM_MODEL, api_key=OPENAI_API_KEY, temperature=0.7)
-    elif LLM_PROVIDER == "anthropic":
-        return ChatAnthropic(model=LLM_MODEL, api_key=ANTHROPIC_API_KEY, temperature=0.7)
-    elif LLM_PROVIDER == "google":
-        return ChatGoogleGenerativeAI(model=LLM_MODEL, api_key=GOOGLE_API_KEY, temperature=0.7)
+    provider = os.getenv("LLM_PROVIDER", "google")
+    model_name = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+    if provider == "openai":
+        return ChatOpenAI(model=model_name, api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7)
+    elif provider == "anthropic":
+        return ChatAnthropic(model=model_name, api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=0.7)
+    elif provider == "google":
+        return ChatGoogleGenerativeAI(model=model_name, api_key=os.getenv("GOOGLE_API_KEY"), temperature=0.7)
     else:
-        raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+        raise ValueError(f"Unsupported LLM provider: {provider}")
 
 async def synthesizer(state: AgentState) -> dict:
     """
