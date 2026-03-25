@@ -12,19 +12,27 @@ PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="${PLUGIN_ROOT}/.env"
 VENV_DIR="${PLUGIN_ROOT}/.venv"
 
+# Find a working Python 3.9+ interpreter (guards against Windows Store stubs)
+resolve_python() {
+  for candidate in python3 python py; do
+    if command -v "$candidate" &>/dev/null; then
+      if "$candidate" -c "import sys; assert sys.version_info >= (3, 9)" 2>/dev/null; then
+        echo "$candidate"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
 # ── Dependency install mode ───────────────────────────────────────────────
 if [ "${1:-}" = "--install-deps" ]; then
   echo "Installing Python dependencies..."
 
-  # Resolve python
-  if command -v python3 &>/dev/null; then
-    PY=python3
-  elif command -v python &>/dev/null; then
-    PY=python
-  else
-    echo "ERROR: Python not found. Install Python 3.9+ and try again."
+  PY=$(resolve_python) || {
+    echo "ERROR: Python 3.9+ not found. Install it from https://python.org and try again."
     exit 1
-  fi
+  }
 
   # Create venv if missing
   if [ ! -d "$VENV_DIR" ]; then
@@ -49,8 +57,8 @@ fi
 MISSING=()
 
 # Check Python
-if ! command -v python3 &>/dev/null && ! command -v python &>/dev/null; then
-  echo "ERROR: Python not found. Install Python 3.9+ from https://python.org"
+if ! resolve_python &>/dev/null; then
+  echo "ERROR: Python 3.9+ not found. Install it from https://python.org"
   exit 1
 fi
 

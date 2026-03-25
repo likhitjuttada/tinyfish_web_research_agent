@@ -2,6 +2,8 @@ langgraph
 langchain
 langsmith
 langchain-google-genai
+langchain-openai
+langchain-anthropic
 httpx
 pydantic
 python-dotenv
