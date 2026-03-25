@@ -29,16 +29,16 @@ The agent is built using a directed acyclic graph (DAG) via LangGraph:
 
 ### Installation
 
-**From the command line:**
-```bash
-claude plugin marketplace add likhitjuttada/tinyfish_web_research_agent
-claude plugin install tinyfish-research@tinyfish-research
-```
-
 **From within Claude Code:**
 ```
 /plugin marketplace add likhitjuttada/tinyfish_web_research_agent
-/plugin install tinyfish-research@tinyfish-research
+/plugin install tinyfish-research@likhitjuttada-claude-marketplace
+```
+
+**From the command line:**
+```bash
+claude plugin marketplace add likhitjuttada/tinyfish_web_research_agent
+claude plugin install tinyfish-research@likhitjuttada-claude-marketplace
 ```
 
 **Manual installation (for development):**
